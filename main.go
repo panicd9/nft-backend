@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"nft-backend/config"
 	"nft-backend/database"
+	"nft-backend/deployer"
 	"nft-backend/indexer"
 	"nft-backend/model"
 	"nft-backend/utils"
@@ -23,8 +25,8 @@ var contractAddrGanache = "0xE7436A481248471e88b473188da401325951f670"
 
 func main() {
 	godotenv.Load()
-	indexer.SetDeployerPrivateKey(utils.GoDotEnvVariable("DEPLOYER_PRIVATE_KEY_HEX"))
-	indexer.SetRPCEndpoint(utils.GoDotEnvVariable("RPC_API_KEY"))
+	config.SetDeployerPrivateKey(utils.GoDotEnvVariable("DEPLOYER_PRIVATE_KEY_HEX"))
+	config.SetRPCEndpoint(utils.GoDotEnvVariable("RPC_API_KEY"))
 
 	db = database.ConnectToDB()
 
@@ -37,11 +39,10 @@ func main() {
 
 	router.HandleFunc("/events/{address}", GetEventsHandler).Methods("GET")
 	router.HandleFunc("/blacklist-user", AddToBlacklistHandler).Methods("POST")
-
 	// contractAddr := indexer.DeployNftContract()
 	// fmt.Println(contractAddr)
-	indexer.SetContractAddress("0x3d31De8Ecdd75f02dE09108c48af6CC219AEa3dC")
-	go indexer.ListenForEvents("0x3d31De8Ecdd75f02dE09108c48af6CC219AEa3dC")
+	config.SetContractAddress("0x3d31De8Ecdd75f02dE09108c48af6CC219AEa3dC")
+	go indexer.ListenForEvents(config.CONTRACT_ADDR)
 
 	http.ListenAndServe(":8080", handlers.CORS(headers, methods, origins)(router))
 }
@@ -102,7 +103,7 @@ func AddToBlacklistHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Verify the signature
 	message := fmt.Sprintf("Authorize-%d-%s", requestData.Timestamp, requestData.Address)
-	success, err := indexer.AddToBlacklist(message, requestData.Signature, requestData.Address)
+	success, err := deployer.AddToBlacklist(message, requestData.Signature, requestData.Address)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
